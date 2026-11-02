@@ -42,12 +42,18 @@ The same JSON drives the [Noctalia panel](https://github.com/dvaxert/noctalia-co
 
 ## Sixty seconds
 
+On Arch and its derivatives, build a pacman package:
+
 ```bash
 git clone https://github.com/dvaxert/codeburn-rs
 cd codeburn-rs
-cargo install --path . --locked
+makepkg -si
 codeburn-rs status --format menubar-json --period today
 ```
+
+To get the [Noctalia plugin](https://github.com/dvaxert/noctalia-codeburn) as well, run its `install.sh` instead. It installs both.
+
+Elsewhere, use `cargo install --path . --locked`. Remove it with `pacman -R codeburn-rs` or `cargo uninstall codeburn-rs`.
 
 `cargo install` puts the binary in `~/.cargo/bin`. That directory needs to be on `PATH`. The bundled SQLite needs a C compiler to build. Live limits also need `curl`.
 
