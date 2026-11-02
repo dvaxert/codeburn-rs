@@ -30,12 +30,12 @@ The same JSON drives the [Noctalia panel](https://github.com/dvaxert/noctalia-co
 
 ## Compared to CodeBurn
 
-[CodeBurn](https://github.com/getagentseal/codeburn) is the original and the much larger tool. This one does a small part of its job. Pick CodeBurn if you want a dashboard or use other tools.
+[CodeBurn](https://github.com/getagentseal/codeburn) is the original and the much larger tool. This one does a small part of its job. Pick CodeBurn if you want a terminal dashboard or desktop apps, or use other tools.
 
 | | codeburn-rs | [CodeBurn](https://github.com/getagentseal/codeburn) |
 |---|---|---|
 | Tools covered | 3 | 42 |
-| Output | JSON for a panel | interactive dashboard, desktop and menu bar apps |
+| Interface | JSON, plus a [Noctalia plugin](https://github.com/dvaxert/noctalia-codeburn) for the bar and panel | interactive dashboard, desktop and menu bar apps |
 | Runs on | Linux | macOS, Windows, Linux |
 | Needs | `curl` for live limits | Node.js 22.13+ |
 | Ships as | one binary of about 4 MB | npm package, Homebrew, installers |
