@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "Local AI coding spend from Claude, Codex, and Cursor session files"
 license = "MIT"
+repository = "https://github.com/dvaxert/codeburn-rs"
+readme = "README.md"
+keywords = ["claude", "codex", "cursor", "tokens", "cost"]
+categories = ["command-line-utilities", "development-tools"]
 publish = false
 
 [[bin]]
