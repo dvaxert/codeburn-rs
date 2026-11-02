@@ -465,7 +465,7 @@ fn cursor_session_cookie(token: &str, now_ms: i64) -> Option<String> {
     let bytes = b64url_decode(payload)?;
     let claims: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
     let sub = claims.get("sub")?.as_str()?;
-    let user_id = sub.split('|').filter(|part| !part.is_empty()).last()?;
+    let user_id = sub.split('|').rfind(|part| !part.is_empty())?;
     if !user_id
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
@@ -491,11 +491,11 @@ fn b64url_decode(input: &str) -> Option<Vec<u8>> {
         }
     }
     let mut padded = input.replace('-', "+").replace('_', "/");
-    while padded.len() % 4 != 0 {
+    while !padded.len().is_multiple_of(4) {
         padded.push('=');
     }
     let bytes = padded.as_bytes();
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return None;
     }
     let mut out = Vec::with_capacity(bytes.len() / 4 * 3);

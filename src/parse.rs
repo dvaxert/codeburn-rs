@@ -46,7 +46,6 @@ struct CodexPayload {
     cwd: Option<String>,
     session_id: Option<String>,
     forked_from_id: Option<String>,
-    response_id: Option<String>,
     usage: Option<UsageBody>,
     info: Option<CodexInfo>,
 }
@@ -434,11 +433,9 @@ fn parse_codex_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
             "token_usage_record" => {
                 if let Some(call) = codex_call(
                     &session,
-                    &fork,
                     &model,
                     &project,
                     entry.timestamp.as_deref(),
-                    payload.response_id.as_deref(),
                     payload.usage.as_ref(),
                     fast,
                 ) {
@@ -452,11 +449,9 @@ fn parse_codex_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
                     .and_then(|info| info.last_token_usage.as_ref());
                 if let Some(call) = codex_call(
                     &session,
-                    &fork,
                     &model,
                     &project,
                     entry.timestamp.as_deref(),
-                    None,
                     usage,
                     fast,
                 ) {
@@ -497,11 +492,9 @@ fn codex_marker(line: &str) -> bool {
 
 fn codex_call(
     session: &str,
-    _fork: &str,
     model: &str,
     project: &str,
     timestamp: Option<&str>,
-    _response: Option<&str>,
     usage: Option<&UsageBody>,
     fast: bool,
 ) -> Option<Call> {
