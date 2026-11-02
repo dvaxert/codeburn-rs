@@ -1,35 +1,87 @@
-<p align="center">
-  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/claude.jpg" alt="Claude" height="34" /></a>
-  &nbsp;
-  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/codex.png" alt="Codex" height="34" /></a>
-  &nbsp;
-  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/cursor.jpg" alt="Cursor" height="34" /></a>
-</p>
+<h1 align="center">🔥 codeburn-rs</h1>
 
 <p align="center"><strong>See where your Claude, Codex, and Cursor spend goes.</strong></p>
 
 <p align="center">
+  <a href="https://github.com/dvaxert/codeburn-rs/actions/workflows/ci.yml"><img src="https://github.com/dvaxert/codeburn-rs/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F97316.svg" alt="MIT license" /></a>
-  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-2021-F97316.svg" alt="Rust 2021" /></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-2021-F97316?logo=rust&logoColor=white" alt="Rust 2021" /></a>
+  <a href="#sixty-seconds"><img src="https://img.shields.io/badge/platform-Linux-F97316?logo=linux&logoColor=white" alt="Linux" /></a>
+</p>
+
+<p align="center">
+  <a href="#what-it-reads"><img src="https://img.shields.io/badge/Claude_Code-spend_%2B_limits-555555?labelColor=F97316" alt="Claude Code: spend and limits" /></a>
+  <a href="#what-it-reads"><img src="https://img.shields.io/badge/Codex-spend_%2B_limits-555555?labelColor=F97316" alt="Codex: spend and limits" /></a>
+  <a href="#what-it-reads"><img src="https://img.shields.io/badge/Cursor-spend_%2B_limits-555555?labelColor=F97316" alt="Cursor: spend and limits" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/getagentseal/codeburn"><img src="https://img.shields.io/badge/rewrite_of-CodeBurn-F97316?logo=github&logoColor=white" alt="Rust rewrite of CodeBurn" /></a>
   <a href="https://github.com/dvaxert/noctalia-codeburn"><img src="https://img.shields.io/badge/panel-Noctalia-F97316.svg" alt="Noctalia panel" /></a>
 </p>
 
-<p align="center"><code>codeburn-rs status --format menubar-json --period today</code></p>
+<p align="center"><code>codeburn-rs status --period today</code></p>
 
-<p align="center"><sub>Install with <code>cargo install --path . --locked</code>. The binary is named <code>codeburn-rs</code> so it can sit next to npm <code>codeburn</code>.</sub></p>
+<p align="center"><sub>A Rust rewrite of part of <a href="https://github.com/getagentseal/codeburn">CodeBurn</a> by AgentSeal. The binary is named <code>codeburn-rs</code> so it can sit next to npm <code>codeburn</code>.</sub></p>
 
-A Rust reader for the session files Claude Code, Codex, and Cursor already write. It prices those sessions and asks each signed-in client how much of the plan is left. Copilot is not a provider.
+A Rust reader for the session files Claude Code, Codex, and Cursor already write. It prices those sessions and asks each signed-in client how much of the plan is left, then prints one JSON document. Copilot is not a provider.
 
 The same JSON drives the [Noctalia panel](https://github.com/dvaxert/noctalia-codeburn).
+
+## Compared to CodeBurn
+
+[CodeBurn](https://github.com/getagentseal/codeburn) is the original and the much larger tool. This one does a small part of its job. Pick CodeBurn if you want a dashboard or use other tools.
+
+| | codeburn-rs | [CodeBurn](https://github.com/getagentseal/codeburn) |
+|---|---|---|
+| Tools covered | 3 | 42 |
+| Output | JSON for a panel | interactive dashboard, desktop and menu bar apps |
+| Runs on | Linux | macOS, Windows, Linux |
+| Needs | `curl` for live limits | Node.js 22.13+ |
+| Ships as | one binary of about 4 MB | npm package, Homebrew, installers |
 
 ## Sixty seconds
 
 ```bash
+git clone https://github.com/dvaxert/codeburn-rs
+cd codeburn-rs
 cargo install --path . --locked
 codeburn-rs status --format menubar-json --period today
 ```
 
-`cargo install` puts the binary in `~/.cargo/bin`. That directory needs to be on `PATH`. Live limits also need `curl`.
+`cargo install` puts the binary in `~/.cargo/bin`. That directory needs to be on `PATH`. The bundled SQLite needs a C compiler to build. Live limits also need `curl`.
+
+<details>
+<summary>What the JSON looks like</summary>
+
+Shortened, with made-up numbers:
+
+```json
+{
+  "generated": "2026-11-02T16:59:09Z",
+  "period": "today",
+  "providers": [
+    { "name": "claude", "located": true, "files": 412, "parsed": true, "cost": 12.34, "calls": 318, "sessions": 6 }
+  ],
+  "current": {
+    "label": "Today",
+    "cost": 18.92,
+    "calls": 455,
+    "sessions": 9,
+    "topModels": [{ "name": "claude-opus-5-5", "cost": 12.34, "tokens": 8120000 }],
+    "projects": [{ "name": "codeburn-rs", "cost": 4.2, "tokens": 2310000 }]
+  },
+  "limits": [
+    { "provider": "claude", "kind": "five_hour", "used": 0.27, "resetsAt": "2026-11-02T19:49:59Z" }
+  ],
+  "history": {
+    "label": "14 days",
+    "daily": [{ "date": "2026-10-20", "cost": 7.5 }]
+  }
+}
+```
+
+</details>
 
 There is no account. The command reads the folders those three tools already use, prices every token it can, and prints one JSON document.
 
@@ -75,8 +127,18 @@ An expired token is not sent. The Codex auth file is never rewritten. Tokens are
 
 Spend comes from files already on disk. Limit calls are the only network, and they send the credential that tool already keeps locally. Prompts and source are not uploaded. CodeBurn-rs does not sit between you and the agent.
 
+## Development
+
+```bash
+cargo fmt --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+```
+
+CI runs the same three commands on every push to `main` and on pull requests.
+
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). Notices for the projects below are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Pricing data from [LiteLLM](https://github.com/BerriAI/litellm). This tree is a Rust reader for three of the providers in [CodeBurn](https://github.com/getagentseal/codeburn). It is not that project.
+Based on [CodeBurn](https://github.com/getagentseal/codeburn) by AgentSeal, and rewritten in Rust for three of its providers. It is a separate project, not affiliated with CodeBurn. Pricing data from [LiteLLM](https://github.com/BerriAI/litellm).
