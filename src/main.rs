@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
 
+mod parse;
 mod payload;
+mod price;
+mod report;
 mod scan;
+mod usage;
 
 #[derive(Parser)]
 #[command(
@@ -41,7 +45,8 @@ fn main() {
                 );
                 std::process::exit(2);
             };
-            let body = payload::menubar_json(&scan::scan(&scan::Roots::from_env()), period);
+            let roots = scan::Roots::from_env();
+            let body = payload::menubar_json(&scan::scan(&roots), &parse::collect(&roots), period);
             println!("{body}");
         }
     }

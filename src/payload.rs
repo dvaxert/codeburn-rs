@@ -1,7 +1,9 @@
 use chrono::Utc;
 use serde::Serialize;
 
+use crate::report::{self, Report};
 use crate::scan::Scan;
+use crate::usage::Call;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Period {
@@ -52,6 +54,13 @@ struct ProviderJson<'a> {
     located: bool,
     files: u64,
     parsed: bool,
+    cost: f64,
+    input_tokens: u64,
+    output_tokens: u64,
+    cache_read_tokens: u64,
+    cache_write_tokens: u64,
+    calls: u64,
+    sessions: u64,
 }
 
 #[derive(Serialize)]
@@ -74,6 +83,7 @@ struct CurrentJson<'a> {
 struct ModelJson {
     name: String,
     cost: f64,
+    tokens: u64,
 }
 
 #[derive(Serialize)]
@@ -81,6 +91,25 @@ struct ModelJson {
 struct ProjectJson {
     name: String,
     cost: f64,
+    tokens: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DayJson {
+    date: String,
+    cost: f64,
+    input_tokens: u64,
+    output_tokens: u64,
+    cache_read_tokens: u64,
+    cache_write_tokens: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HistoryJson<'a> {
+    label: &'a str,
+    daily: Vec<DayJson>,
 }
 
 #[derive(Serialize)]
@@ -90,38 +119,83 @@ struct Payload<'a> {
     period: &'a str,
     providers: Vec<ProviderJson<'a>>,
     current: CurrentJson<'a>,
+    history: HistoryJson<'a>,
 }
 
-/// Status JSON the Noctalia plugin renders. Costs stay zero until a provider
-/// reports `parsed: true`.
-pub fn menubar_json(scan: &Scan, period: Period) -> String {
-    let payload = Payload {
+/// Status JSON the Noctalia plugin renders.
+pub fn menubar_json(scan: &Scan, calls: &[Call], period: Period) -> String {
+    let report = report::build(calls, period, Utc::now());
+    serde_json::to_string(&payload_from(scan, &report, period)).expect("payload is a plain struct")
+}
+
+fn payload_from<'a>(scan: &'a Scan, report: &'a Report, period: Period) -> Payload<'a> {
+    Payload {
         generated: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         period: period.as_str(),
         providers: scan
             .providers
             .iter()
-            .map(|provider| ProviderJson {
-                name: provider.name,
-                located: provider.located,
-                files: provider.files,
-                parsed: provider.parsed,
+            .map(|provider| {
+                let rollup = report.providers.iter().find(|row| row.name == provider.name);
+                ProviderJson {
+                    name: provider.name,
+                    located: provider.located,
+                    files: provider.files,
+                    parsed: true,
+                    cost: rollup.map(|row| row.cost).unwrap_or(0.0),
+                    input_tokens: rollup.map(|row| row.input).unwrap_or(0),
+                    output_tokens: rollup.map(|row| row.output).unwrap_or(0),
+                    cache_read_tokens: rollup.map(|row| row.cache_read).unwrap_or(0),
+                    cache_write_tokens: rollup.map(|row| row.cache_write).unwrap_or(0),
+                    calls: rollup.map(|row| row.calls).unwrap_or(0),
+                    sessions: rollup.map(|row| row.sessions).unwrap_or(0),
+                }
             })
             .collect(),
         current: CurrentJson {
             label: period.label(),
-            cost: 0.0,
-            calls: 0,
-            sessions: 0,
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_read_tokens: 0,
-            cache_write_tokens: 0,
-            top_models: Vec::new(),
-            projects: Vec::new(),
+            cost: report.cost,
+            calls: report.calls,
+            sessions: report.sessions,
+            input_tokens: report.input,
+            output_tokens: report.output,
+            cache_read_tokens: report.cache_read,
+            cache_write_tokens: report.cache_write,
+            top_models: report
+                .models
+                .iter()
+                .map(|model| ModelJson {
+                    name: model.name.clone(),
+                    cost: model.cost,
+                    tokens: model.tokens,
+                })
+                .collect(),
+            projects: report
+                .projects
+                .iter()
+                .map(|project| ProjectJson {
+                    name: project.name.clone(),
+                    cost: project.cost,
+                    tokens: project.tokens,
+                })
+                .collect(),
         },
-    };
-    serde_json::to_string(&payload).expect("payload is a plain struct")
+        history: HistoryJson {
+            label: report.chart_label,
+            daily: report
+                .days
+                .iter()
+                .map(|day| DayJson {
+                    date: day.date.format("%Y-%m-%d").to_string(),
+                    cost: day.cost,
+                    input_tokens: day.input,
+                    output_tokens: day.output,
+                    cache_read_tokens: day.cache_read,
+                    cache_write_tokens: day.cache_write,
+                })
+                .collect(),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -147,14 +221,14 @@ mod tests {
             }],
         };
         let value: serde_json::Value =
-            serde_json::from_str(&menubar_json(&scan, Period::Today)).unwrap();
+            serde_json::from_str(&menubar_json(&scan, &[], Period::Today)).unwrap();
         assert_eq!(value["period"], "today");
         assert_eq!(value["current"]["cost"], 0.0);
         assert_eq!(value["current"]["inputTokens"], 0);
-        assert_eq!(value["current"]["topModels"], serde_json::json!([]));
+        assert_eq!(value["history"]["daily"].as_array().unwrap().len(), 14);
         assert_eq!(value["providers"][0]["name"], "claude");
         assert_eq!(value["providers"][0]["files"], 4);
-        assert_eq!(value["providers"][0]["parsed"], false);
+        assert_eq!(value["providers"][0]["parsed"], true);
         assert!(value.get("copilot").is_none());
     }
 }
