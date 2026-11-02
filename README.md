@@ -1,64 +1,82 @@
-# codeburn-rs
+<p align="center">
+  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/claude.jpg" alt="Claude" height="34" /></a>
+  &nbsp;
+  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/codex.png" alt="Codex" height="34" /></a>
+  &nbsp;
+  <a href="#what-it-reads"><img src="https://raw.githubusercontent.com/getagentseal/codeburn/main/assets/providers/cursor.jpg" alt="Cursor" height="34" /></a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Rust 2021](https://img.shields.io/badge/rust-2021-dea584.svg)](https://www.rust-lang.org/)
-[![Claude · Codex · Cursor](https://img.shields.io/badge/providers-Claude%20%C2%B7%20Codex%20%C2%B7%20Cursor-111111.svg)](#что-читается)
+<p align="center"><strong>See where your Claude, Codex, and Cursor spend goes.</strong></p>
 
-Локальный учёт расхода на Claude, Codex и Cursor и остаток их лимитов. Бинарь называется `codeburn-rs`, чтобы стоять рядом с npm-пакетом `codeburn` и не занимать его имя. Copilot не читается и в JSON не появляется.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F97316.svg" alt="MIT license" /></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-2021-F97316.svg" alt="Rust 2021" /></a>
+  <a href="https://github.com/dvaxert/noctalia-codeburn"><img src="https://img.shields.io/badge/panel-Noctalia-F97316.svg" alt="Noctalia panel" /></a>
+</p>
 
-Цифры расхода берутся из сессий, которые уже лежат на диске. Остаток лимита спрашивается у того же входа, которым пользуется сам клиент: токен из локального файла уходит в один запрос и никуда не пишется. Панель для этого JSON — [noctalia-codeburn](https://github.com/dvaxert/noctalia-codeburn).
+<p align="center"><code>codeburn-rs status --format menubar-json --period today</code></p>
 
-## Установка
+<p align="center"><sub>Install with <code>cargo install --path . --locked</code>. The binary is named <code>codeburn-rs</code> so it can sit next to npm <code>codeburn</code>.</sub></p>
 
-Нужны Rust 2021 и `curl` (им ходят запросы лимитов).
+A Rust reader for the session files Claude Code, Codex, and Cursor already write. It prices those sessions and asks each signed-in client how much of the plan is left. Copilot is not a provider.
+
+The same JSON drives the [Noctalia panel](https://github.com/dvaxert/noctalia-codeburn).
+
+## Sixty seconds
 
 ```bash
 cargo install --path . --locked
-codeburn-rs --version
-```
-
-`cargo install` кладёт бинарь в `~/.cargo/bin`. Этот каталог должен быть в `PATH`.
-
-## Команда
-
-```bash
 codeburn-rs status --format menubar-json --period today
 ```
 
-`--format` принимает только `menubar-json`. `--period` задаёт окно расхода:
+`cargo install` puts the binary in `~/.cargo/bin`. That directory needs to be on `PATH`. Live limits also need `curl`.
 
-| Период | Заголовок `current` | График `history` |
+There is no account. The command reads the folders those three tools already use, prices every token it can, and prints one JSON document.
+
+`--format` accepts only `menubar-json`. `--period` picks the spend window. The chart is not always the same window as the headline: today keeps a 14-day chart so the line is not flat.
+
+| Period | Headline `current` | Chart `history` |
 |---|---|---|
-| `today` | сегодняшний день | последние 14 дней, включая нули |
-| `week` | 7 дней, включая сегодня | те же 7 дней |
-| `30days` | 30 дней | те же 30 дней |
-| `month` | календарный месяц | дни этого месяца |
-| `all` | всё, что нашлось | последние 90 дней |
+| `today` | today | the last 14 days, zeros included |
+| `week` | 7 days, including today | those same 7 days |
+| `30days` | 30 days | those same 30 days |
+| `month` | the calendar month | the days of that month |
+| `all` | everything on disk | the last 90 days |
 
-Деньги округляются до 6 знаков. Дни считаются в местной таймзоне. Первый проход по большим JSONL может занять около десяти секунд, повторный читает `~/.cache/codeburn-rs` и обычно укладывается в долю секунды. Три запроса лимитов идут параллельно, каждый обрывается через 8 секунд. Если сервис не ответил или сессии нет, его полос в `limits` просто нет, а расход всё равно печатается.
+Money is rounded to 6 decimal places. Days use the local timezone. The first pass over large JSONL files can take about ten seconds. The next one reads `~/.cache/codeburn-rs` and is usually a fraction of a second. The three limit requests run in parallel and each stops after 8 seconds. A provider that does not answer is simply missing from `limits`. The spend still prints.
 
-В `limits` у каждого окна есть `provider`, `kind`, доля уже потраченного `used` (от 0 до 1) и `resetsAt`. Полоса остатка — это `1 - used`. Типичные окна: у Claude 5 часов и неделя, у Codex 5 часов и неделя, у Cursor месяц плюс Auto и API. Отдельного дневного окна у этих тарифов нет.
+## What it reads
 
-## Что читается
-
-| | Где | Что идёт в расход |
+| | Where | What counts |
 |---|---|---|
-| Claude | `~/.claude/projects/**/*.jsonl` | последнее `usage` каждого сообщения, вместе с кэшем |
-| Codex | `$CODEX_HOME` или `~/.codex`, каталоги `sessions/` и `archived_sessions/` | `token_usage_record`, а если его нет — `token_count` |
-| Cursor | `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb` | последний снимок контекста композера; выходные токены остаются 0 |
+| Claude | `~/.claude/projects/**/*.jsonl` | the last `usage` on each assistant message, cache included |
+| Codex | `$CODEX_HOME` or `~/.codex`, under `sessions/` and `archived_sessions/` | `token_usage_record` when the file has one, otherwise `token_count` |
+| Cursor | `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb` | the latest composer context for each chat. Output stays 0 |
 
-Переопределения: `CODEBURN_RS_CLAUDE_DIR`, `CODEX_HOME`, `CODEBURN_RS_CURSOR_DB`.
+Overrides: `CODEBURN_RS_CLAUDE_DIR`, `CODEX_HOME`, `CODEBURN_RS_CURSOR_DB`.
 
-Цены лежат в `data/prices.json`, это снимок LiteLLM. Неизвестная модель даёт нулевую цену, токены при этом сохраняются. Запись в кэш Claude на 1 час считается по ставке 1.6× от пятиминутной записи. Недостающая ставка записи в кэш берётся как 1.25× входа, чтения — как 0.1× входа.
+Prices ship in `data/prices.json`, a LiteLLM snapshot. A model with no row costs 0 and its tokens are still counted. A one-hour Claude cache write is billed at 1.6× the five-minute cache-write rate. A missing cache-write rate falls back to 1.25× input, and a missing cache-read rate to 0.1× input.
 
-Лимиты читаются только на чтение:
+## Stay ahead
 
-- Claude — `~/.claude/.credentials.json`, `GET https://api.anthropic.com/api/oauth/usage`
-- Codex — `~/.codex/auth.json` в режиме `chatgpt`, `GET https://chatgpt.com/backend-api/wham/usage`
-- Cursor — ключ `cursorAuth/accessToken` в той же `state.vscdb`, `GET https://cursor.com/api/usage-summary`
+`limits` is the live reading. Each window has `provider`, `kind`, `used` as a fraction from 0 to 1, and `resetsAt`. The bar for what is left is `1 - used`.
 
-Токен с истёкшим сроком не отправляется. Файл авторизации Codex не перезаписывается.
+Claude reports a 5-hour window and a weekly window. Codex reports a 5-hour window and a weekly window. Cursor reports the billing month, plus Auto and API when the payload has them. These plans do not expose a separate daily window.
 
-## Лицензия
+The requests are read-only and use the login the app already stored:
 
-[MIT](LICENSE) © 2026 dvaxert
+- Claude reads `~/.claude/.credentials.json` and calls `GET https://api.anthropic.com/api/oauth/usage`
+- Codex reads `~/.codex/auth.json` when `auth_mode` is `chatgpt` and calls `GET https://chatgpt.com/backend-api/wham/usage`
+- Cursor reads `cursorAuth/accessToken` from the same `state.vscdb` and calls `GET https://cursor.com/api/usage-summary`
+
+An expired token is not sent. The Codex auth file is never rewritten. Tokens are not logged.
+
+## Private by design
+
+Spend comes from files already on disk. Limit calls are the only network, and they send the credential that tool already keeps locally. Prompts and source are not uploaded. CodeBurn-rs does not sit between you and the agent.
+
+## License
+
+[MIT](LICENSE).
+
+Pricing data from [LiteLLM](https://github.com/BerriAI/litellm). This tree is a Rust reader for three of the providers in [CodeBurn](https://github.com/getagentseal/codeburn). It is not that project.
