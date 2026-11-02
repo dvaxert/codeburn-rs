@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::Serialize;
 
+use crate::quota::Limit;
 use crate::report::{self, Report};
 use crate::scan::Scan;
 use crate::usage::Call;
@@ -119,16 +120,23 @@ struct Payload<'a> {
     period: &'a str,
     providers: Vec<ProviderJson<'a>>,
     current: CurrentJson<'a>,
+    limits: &'a [Limit],
     history: HistoryJson<'a>,
 }
 
 /// Status JSON the Noctalia plugin renders.
-pub fn menubar_json(scan: &Scan, calls: &[Call], period: Period) -> String {
+pub fn menubar_json(scan: &Scan, calls: &[Call], period: Period, limits: &[Limit]) -> String {
     let report = report::build(calls, period, Utc::now());
-    serde_json::to_string(&payload_from(scan, &report, period)).expect("payload is a plain struct")
+    serde_json::to_string(&payload_from(scan, &report, period, limits))
+        .expect("payload is a plain struct")
 }
 
-fn payload_from<'a>(scan: &'a Scan, report: &'a Report, period: Period) -> Payload<'a> {
+fn payload_from<'a>(
+    scan: &'a Scan,
+    report: &'a Report,
+    period: Period,
+    limits: &'a [Limit],
+) -> Payload<'a> {
     Payload {
         generated: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         period: period.as_str(),
@@ -136,7 +144,10 @@ fn payload_from<'a>(scan: &'a Scan, report: &'a Report, period: Period) -> Paylo
             .providers
             .iter()
             .map(|provider| {
-                let rollup = report.providers.iter().find(|row| row.name == provider.name);
+                let rollup = report
+                    .providers
+                    .iter()
+                    .find(|row| row.name == provider.name);
                 ProviderJson {
                     name: provider.name,
                     located: provider.located,
@@ -180,6 +191,7 @@ fn payload_from<'a>(scan: &'a Scan, report: &'a Report, period: Period) -> Paylo
                 })
                 .collect(),
         },
+        limits,
         history: HistoryJson {
             label: report.chart_label,
             daily: report
@@ -221,11 +233,13 @@ mod tests {
             }],
         };
         let value: serde_json::Value =
-            serde_json::from_str(&menubar_json(&scan, &[], Period::Today)).unwrap();
+            serde_json::from_str(&menubar_json(&scan, &[], Period::Today, &[])).unwrap();
         assert_eq!(value["period"], "today");
         assert_eq!(value["current"]["cost"], 0.0);
         assert_eq!(value["current"]["inputTokens"], 0);
         assert_eq!(value["history"]["daily"].as_array().unwrap().len(), 14);
+        assert!(value.get("usage").is_none());
+        assert_eq!(value["limits"].as_array().unwrap().len(), 0);
         assert_eq!(value["providers"][0]["name"], "claude");
         assert_eq!(value["providers"][0]["files"], 4);
         assert_eq!(value["providers"][0]["parsed"], true);

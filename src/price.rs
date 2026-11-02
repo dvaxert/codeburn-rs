@@ -30,7 +30,9 @@ struct Book {
 }
 
 fn number(value: Option<&Value>) -> Option<f64> {
-    value.and_then(Value::as_f64).filter(|n| n.is_finite() && *n >= 0.0)
+    value
+        .and_then(Value::as_f64)
+        .filter(|n| n.is_finite() && *n >= 0.0)
 }
 
 fn rate_from_array(values: &[Value]) -> Option<Rate> {
@@ -80,12 +82,8 @@ fn book() -> &'static Book {
             ("composer-1.5", [3.5e-6, 17.5e-6, 3.5e-6, 0.35e-6]),
             ("composer-1", [1.25e-6, 10e-6, 1.25e-6, 0.125e-6]),
         ] {
-            let row = rate_from_array(
-                &row.into_iter()
-                    .map(Value::from)
-                    .collect::<Vec<_>>(),
-            )
-            .expect("override row");
+            let row = rate_from_array(&row.into_iter().map(Value::from).collect::<Vec<_>>())
+                .expect("override row");
             if let Some(existing) = rates.iter_mut().find(|(key, _)| key == name) {
                 existing.1 = row;
             } else {
@@ -101,7 +99,8 @@ fn boundary_match(model: &str, key: &str) -> bool {
     let Some(rest) = model.get(key.len()..) else {
         return false;
     };
-    model.as_bytes().get(..key.len()) == Some(key.as_bytes()) && (rest.is_empty() || rest.starts_with('-'))
+    model.as_bytes().get(..key.len()) == Some(key.as_bytes())
+        && (rest.is_empty() || rest.starts_with('-'))
 }
 
 fn find_rate(model: &str) -> Option<Rate> {
@@ -120,7 +119,9 @@ fn find_rate(model: &str) -> Option<Rate> {
     }
     book.rates
         .iter()
-        .find(|(key, _)| boundary_match(model, key) || stripped.is_some_and(|id| boundary_match(id, key)))
+        .find(|(key, _)| {
+            boundary_match(model, key) || stripped.is_some_and(|id| boundary_match(id, key))
+        })
         .map(|(_, rate)| rate.clone())
         .or_else(|| {
             book.rates
@@ -145,7 +146,10 @@ pub fn cost(
     let Some(mut rate) = find_rate(model) else {
         return 0.0;
     };
-    let prompt = input.saturating_add(cache_write).saturating_add(cache_write_1h).saturating_add(cache_read) as f64;
+    let prompt = input
+        .saturating_add(cache_write)
+        .saturating_add(cache_write_1h)
+        .saturating_add(cache_read) as f64;
     if let Some(tier) = rate.tier.clone() {
         if prompt > tier.threshold {
             rate.input = tier.input;

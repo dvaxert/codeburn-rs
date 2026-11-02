@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 mod parse;
 mod payload;
 mod price;
+mod quota;
 mod report;
 mod scan;
 mod usage;
@@ -40,13 +41,17 @@ fn main() {
                 std::process::exit(2);
             }
             let Some(period) = payload::Period::parse(&period) else {
-                eprintln!(
-                    "unknown period {period:?}; expected today, week, 30days, month, or all"
-                );
+                eprintln!("unknown period {period:?}; expected today, week, 30days, month, or all");
                 std::process::exit(2);
             };
             let roots = scan::Roots::from_env();
-            let body = payload::menubar_json(&scan::scan(&roots), &parse::collect(&roots), period);
+            let limits = quota::fetch(&roots);
+            let body = payload::menubar_json(
+                &scan::scan(&roots),
+                &parse::collect(&roots),
+                period,
+                &limits,
+            );
             println!("{body}");
         }
     }

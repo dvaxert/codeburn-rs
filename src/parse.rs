@@ -137,7 +137,11 @@ fn cached_file(
 fn dedup_key(call: &Call) -> String {
     format!(
         "{}:{}:{}:{}:{}",
-        call.provider, call.session, call.at.to_rfc3339(), call.input, call.output
+        call.provider,
+        call.session,
+        call.at.to_rfc3339(),
+        call.input,
+        call.output
     )
 }
 
@@ -327,8 +331,12 @@ fn parse_claude_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
             .filter(|name| !name.is_empty())
             .unwrap_or_else(|| fallback.to_string());
         let write_total = tokens_of(usage.cache_creation_input_tokens);
-        let one_hour = tokens_of(usage.cache_creation.and_then(|cache| cache.ephemeral_1h_input_tokens))
-            .min(write_total);
+        let one_hour = tokens_of(
+            usage
+                .cache_creation
+                .and_then(|cache| cache.ephemeral_1h_input_tokens),
+        )
+        .min(write_total);
         let five_minute = write_total.saturating_sub(one_hour);
         let input = tokens_of(usage.input_tokens);
         let output = tokens_of(usage.output_tokens);
@@ -338,7 +346,15 @@ fn parse_claude_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
         }
         let call = Call {
             provider: "claude".to_string(),
-            cost: price::cost(&model, input, output, five_minute, cache_read, one_hour, false),
+            cost: price::cost(
+                &model,
+                input,
+                output,
+                five_minute,
+                cache_read,
+                one_hour,
+                false,
+            ),
             model,
             project,
             session: session.clone(),
@@ -430,7 +446,10 @@ fn parse_codex_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
                 }
             }
             "event_msg" if payload.kind.as_deref() == Some("token_count") => {
-                let usage = payload.info.as_ref().and_then(|info| info.last_token_usage.as_ref());
+                let usage = payload
+                    .info
+                    .as_ref()
+                    .and_then(|info| info.last_token_usage.as_ref());
                 if let Some(call) = codex_call(
                     &session,
                     &fork,
@@ -452,7 +471,11 @@ fn parse_codex_file(path: &Path, seen: &mut HashSet<String>) -> Vec<Call> {
     for call in chosen {
         let key = format!(
             "codex:{}:{}:{}:{}",
-            if fork.is_empty() { session.as_str() } else { fork.as_str() },
+            if fork.is_empty() {
+                session.as_str()
+            } else {
+                fork.as_str()
+            },
             call.at.to_rfc3339(),
             call.input,
             call.output
@@ -483,7 +506,9 @@ fn codex_call(
     fast: bool,
 ) -> Option<Call> {
     let usage = usage?;
-    let at = DateTime::parse_from_rfc3339(timestamp?).ok()?.with_timezone(&Utc);
+    let at = DateTime::parse_from_rfc3339(timestamp?)
+        .ok()?
+        .with_timezone(&Utc);
     let model = if model.is_empty() { "gpt-5" } else { model };
     let input = tokens_of(usage.input_tokens);
     let cached = tokens_of(usage.cached_input_tokens);
@@ -495,7 +520,15 @@ fn codex_call(
     let (billed_input, billed_write, billed_read) = codex_buckets(input, cached, write, model);
     Some(Call {
         provider: "codex".to_string(),
-        cost: price::cost(model, billed_input, output, billed_write, billed_read, 0, fast),
+        cost: price::cost(
+            model,
+            billed_input,
+            output,
+            billed_write,
+            billed_read,
+            0,
+            fast,
+        ),
         model: model.to_string(),
         project: project.to_string(),
         session: session.to_string(),
@@ -550,7 +583,9 @@ fn parse_cursor(path: &Path) -> Vec<Call> {
         let Some(at) = cursor_time(created) else {
             continue;
         };
-        let model = model.filter(|model| !model.is_empty()).unwrap_or_else(|| "cursor-auto".to_string());
+        let model = model
+            .filter(|model| !model.is_empty())
+            .unwrap_or_else(|| "cursor-auto".to_string());
         let project = name
             .map(|name| name.chars().take(48).collect::<String>())
             .filter(|name| !name.trim().is_empty())
@@ -580,7 +615,11 @@ fn flex_f64(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<Option<f6
 
 fn cursor_time(millis: Option<f64>) -> Option<DateTime<Utc>> {
     let millis = millis?;
-    let millis = if millis < 10_000_000_000.0 { millis * 1000.0 } else { millis };
+    let millis = if millis < 10_000_000_000.0 {
+        millis * 1000.0
+    } else {
+        millis
+    };
     DateTime::from_timestamp_millis(millis as i64)
 }
 

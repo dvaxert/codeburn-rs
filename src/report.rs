@@ -88,37 +88,46 @@ pub fn build(calls: &[Call], period: Period, now: DateTime<Utc>) -> Report {
         cache_read += call.cache_read;
         cache_write += call.cache_write;
         period_sessions.insert(format!("{}:{}", call.provider, call.session));
-        let model = models.entry(display_model(&call.model)).or_insert_with(|| Bucket {
-            name: display_model(&call.model),
-            cost: 0.0,
-            tokens: 0,
-        });
+        let model = models
+            .entry(display_model(&call.model))
+            .or_insert_with(|| Bucket {
+                name: display_model(&call.model),
+                cost: 0.0,
+                tokens: 0,
+            });
         model.cost += call.cost;
         model.tokens += call.input + call.output + call.cache_read + call.cache_write;
-        let project = projects.entry(call.project.clone()).or_insert_with(|| Bucket {
-            name: call.project.clone(),
-            cost: 0.0,
-            tokens: 0,
-        });
+        let project = projects
+            .entry(call.project.clone())
+            .or_insert_with(|| Bucket {
+                name: call.project.clone(),
+                cost: 0.0,
+                tokens: 0,
+            });
         project.cost += call.cost;
         project.tokens += call.input + call.output + call.cache_read + call.cache_write;
-        let provider = providers.entry(call.provider.clone()).or_insert_with(|| ProviderRollup {
-            name: call.provider.clone(),
-            cost: 0.0,
-            input: 0,
-            output: 0,
-            cache_read: 0,
-            cache_write: 0,
-            calls: 0,
-            sessions: 0,
-        });
+        let provider = providers
+            .entry(call.provider.clone())
+            .or_insert_with(|| ProviderRollup {
+                name: call.provider.clone(),
+                cost: 0.0,
+                input: 0,
+                output: 0,
+                cache_read: 0,
+                cache_write: 0,
+                calls: 0,
+                sessions: 0,
+            });
         provider.cost += call.cost;
         provider.input += call.input;
         provider.output += call.output;
         provider.cache_read += call.cache_read;
         provider.cache_write += call.cache_write;
         provider.calls += 1;
-        sessions.entry(call.provider.clone()).or_default().insert(call.session.clone());
+        sessions
+            .entry(call.provider.clone())
+            .or_default()
+            .insert(call.session.clone());
     }
     for (name, ids) in sessions {
         if let Some(provider) = providers.get_mut(&name) {
@@ -166,7 +175,9 @@ fn in_period(period: Period, date: NaiveDate, today: NaiveDate) -> bool {
         Period::Today => date == today,
         Period::Week => date > today - Duration::days(7) && date <= today,
         Period::Days30 => date > today - Duration::days(30) && date <= today,
-        Period::Month => date.year() == today.year() && date.month() == today.month() && date <= today,
+        Period::Month => {
+            date.year() == today.year() && date.month() == today.month() && date <= today
+        }
         Period::All => date <= today,
     }
 }
@@ -203,7 +214,11 @@ fn display_model(model: &str) -> String {
             None => String::new(),
         };
         let version = version.replace('-', ".");
-        return if version.is_empty() { family } else { format!("{family} {version}") };
+        return if version.is_empty() {
+            family
+        } else {
+            format!("{family} {version}")
+        };
     }
     if let Some(rest) = model.strip_prefix("gpt-") {
         return format!("GPT-{rest}");
@@ -238,7 +253,10 @@ mod tests {
         assert_eq!(report.cost, 3.0);
         assert_eq!(report.calls, 1);
         assert_eq!(report.days.len(), 14);
-        assert_eq!(report.days.last().unwrap().date, NaiveDate::from_ymd_opt(2026, 11, 2).unwrap());
+        assert_eq!(
+            report.days.last().unwrap().date,
+            NaiveDate::from_ymd_opt(2026, 11, 2).unwrap()
+        );
         assert!(report.days.iter().any(|day| day.cost == 1.0));
         assert_eq!(report.models[0].name, "Opus 5.5");
     }
